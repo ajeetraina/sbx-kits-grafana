@@ -2,8 +2,8 @@
 
 This is a standalone [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) kit
 (`kind: mixin`) that gives any sandbox agent hands-on access to
-[Grafana](https://grafana.com/) — dashboards, datasources, and Prometheus/Loki
-queries — through the official
+[Grafana](https://grafana.com/) dashboards, datasources, and Prometheus/Loki
+queries through the official
 [Grafana MCP server](https://github.com/grafana/mcp-grafana) (`mcp-grafana`),
 plus the [`grafana-client`](https://pypi.org/project/grafana-client/) Python
 library for scripting.
@@ -34,7 +34,7 @@ sbx login
 
 ### 1. Bring up a Grafana for the default (local) target
 
-Run the bundled stack on your **host** — it starts Grafana on
+Run the bundled stack on your **host** - it starts Grafana on
 `http://localhost:3000` (anonymous Admin) with a Prometheus datasource, so the
 sandbox can reach it over `host.docker.internal:3000` with no token:
 
