@@ -46,6 +46,12 @@ jobs:
         run: bash ./scripts/push-kits.sh
 
       - name: Sync Docker Hub overview page
+        # Cosmetic: updates the Hub repo's overview README. Kept non-fatal so a
+        # DOCKERHUB_TOKEN whose scope doesn't include this repo (Docker Hub
+        # returns 404, not 403) can't fail a run whose kit push already
+        # succeeded. To make it actually update, use a PAT scoped to
+        # <namespace>/sbx-grafana-kits with read/write.
+        continue-on-error: true
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
