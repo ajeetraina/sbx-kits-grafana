@@ -12,6 +12,13 @@ A local Grafana on the host is the zero-config default. It works with no Grafana
 account and no API token; the target is swappable to Grafana Cloud or any
 self-hosted instance. See [providers/](./providers/) for copy-paste config.
 
+![sbx-kits-grafana demo dashboard](./docs/dashboard.png)
+
+*The `sbx-kits-grafana demo` dashboard, seeded and driven entirely from inside
+the sandbox by [`~/runbooks/seed_demo.py`](./files/home/runbooks/seed_demo.py):
+it creates the dashboard, then bursts queries at Prometheus — you can see the
+load spike ripple across query rate, goroutines, memory, and scrape latency.*
+
 ## What the kit does
 
 Layered onto an agent, the mixin does four observable things:
