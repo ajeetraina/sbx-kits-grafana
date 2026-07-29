@@ -1,0 +1,64 @@
+schemaVersion: "1"
+kind: mixin
+name: grafana
+displayName: Grafana (local)
+description: "Adds the official Grafana MCP server (mcp-grafana) plus the grafana-client Python library to an agent, pre-wired to a local Grafana on the host — no cloud account, no API token."
+sourceURL: https://github.com/ajeetraina/sbx-kits-grafana
+
+network:
+  allowedDomains:
+    - pypi.org
+    - files.pythonhosted.org
+    - github.com
+    - objects.githubusercontent.com
+    - release-assets.githubusercontent.com
+
+environment:
+  variables:
+    # Local Grafana runs on the host; the sandbox reaches it via host.docker.internal.
+    GRAFANA_URL: "http://host.docker.internal:3000"
+    # sbx leaves an IPv6 "[::1]" entry in NO_PROXY that breaks proxy-bypass
+    # matching for host.docker.internal; listing it here keeps host traffic direct.
+    NO_PROXY: "localhost,127.0.0.1,host.docker.internal"
+    no_proxy: "localhost,127.0.0.1,host.docker.internal"
+
+commands:
+  install:
+    - command: "mkdir -p /home/agent/.local/bin && arch=$(uname -m) && case \"$arch\" in x86_64) a=x64 ;; aarch64|arm64) a=arm64 ;; *) a=x64 ;; esac && curl -fsSL \"https://github.com/grafana/mcp-grafana/releases/download/v1.0.0/linux.${a}.grafana.tar.gz\" | tar -xz -C /home/agent/.local/bin mcp-grafana && chmod +x /home/agent/.local/bin/mcp-grafana"
+      user: "1000"
+      description: "Download the pinned mcp-grafana v1.0.0 binary for the container arch into ~/.local/bin"
+    - command: "pip install --break-system-packages 'grafana-client==5.1.0'"
+      user: "1000"
+      description: "Install the grafana-client Python library (used by the runbooks and for shell verification)"
+  startup:
+    # Best-effort: register the MCP server with the Claude agent if it's present.
+    # Guarded + `|| true` so it is a no-op for other agents and never fails startup.
+    - command: ["sh", "-c", "command -v claude >/dev/null 2>&1 && claude mcp add grafana -- /home/agent/.local/bin/mcp-grafana >/dev/null 2>&1 || true"]
+      user: "1000"
+      description: "Register mcp-grafana with the Claude agent (best-effort; no-op elsewhere)"
+  initFiles:
+    - path: /home/agent/.grafana/mcp.json
+      mode: "0644"
+      onlyIfMissing: true
+      description: "Portable MCP server definition — copy into any agent that reads an mcpServers block"
+      content: |
+        {
+          "mcpServers": {
+            "grafana": {
+              "command": "/home/agent/.local/bin/mcp-grafana",
+              "args": [],
+              "env": {
+                "GRAFANA_URL": "http://host.docker.internal:3000"
+              }
+            }
+          }
+        }
+memory: |
+  ## Grafana observability tooling
+
+  The official Grafana MCP server (`mcp-grafana`) is installed at
+  `~/.local/bin/mcp-grafana` and wired to a local Grafana via `GRAFANA_URL`
+  (`http://host.docker.internal:3000`). Through it you can search dashboards,
+  list datasources, and run Prometheus/Loki queries. The `grafana-client`
+  Python library is also installed for scripting; see `~/runbooks/` for a
+  working example (`grafana_report.py`).

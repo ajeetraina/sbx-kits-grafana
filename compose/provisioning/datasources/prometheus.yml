@@ -1,0 +1,10 @@
+# Provisions the bundled Prometheus as a Grafana datasource so mcp-grafana and
+# grafana_report.py have something to list and query out of the box.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true

@@ -1,0 +1,83 @@
+schemaVersion: "1"
+kind: mixin
+name: grafana
+displayName: Grafana Cloud
+description: "Adds the official Grafana MCP server (mcp-grafana) plus grafana-client, wired to Grafana Cloud. Store the token with: sbx secret set -g grafana (the kit holds no token)."
+sourceURL: https://github.com/ajeetraina/sbx-kits-grafana
+
+network:
+  allowedDomains:
+    - pypi.org
+    - files.pythonhosted.org
+    - github.com
+    - objects.githubusercontent.com
+    - release-assets.githubusercontent.com
+    - "*.grafana.net"
+  # Route requests to your Grafana Cloud stack through the "grafana" service so
+  # the proxy can attach the token. Grafana Cloud stacks live on *.grafana.net.
+  serviceDomains:
+    "*.grafana.net": grafana
+  serviceAuth:
+    grafana:
+      headerName: Authorization
+      valueFormat: "Bearer %s"
+
+environment:
+  variables:
+    # Replace <STACK> with your stack slug, e.g. https://myorg.grafana.net.
+    # This is the one value the kit cannot know for you; edit it in a local
+    # clone (`sbx run --kit ./kits/cloud`) or `export GRAFANA_URL=...` in-sandbox.
+    GRAFANA_URL: "https://YOUR-STACK.grafana.net"
+    # Placeholder — the sbx proxy swaps in the real token from the stored
+    # `grafana` secret on the wire, so the token never enters the sandbox.
+    GRAFANA_SERVICE_ACCOUNT_TOKEN: "placeholder"
+    NO_PROXY: "localhost,127.0.0.1,host.docker.internal"
+    no_proxy: "localhost,127.0.0.1,host.docker.internal"
+  proxyManaged:
+    - GRAFANA_SERVICE_ACCOUNT_TOKEN
+
+credentials:
+  sources:
+    grafana:
+      env:
+        - GRAFANA_SERVICE_ACCOUNT_TOKEN
+
+commands:
+  install:
+    - command: "mkdir -p /home/agent/.local/bin && arch=$(uname -m) && case \"$arch\" in x86_64) a=x64 ;; aarch64|arm64) a=arm64 ;; *) a=x64 ;; esac && curl -fsSL \"https://github.com/grafana/mcp-grafana/releases/download/v1.0.0/linux.${a}.grafana.tar.gz\" | tar -xz -C /home/agent/.local/bin mcp-grafana && chmod +x /home/agent/.local/bin/mcp-grafana"
+      user: "1000"
+      description: "Download the pinned mcp-grafana v1.0.0 binary for the container arch into ~/.local/bin"
+    - command: "pip install --break-system-packages 'grafana-client==5.1.0'"
+      user: "1000"
+      description: "Install the grafana-client Python library"
+  startup:
+    - command: ["sh", "-c", "command -v claude >/dev/null 2>&1 && claude mcp add grafana -- /home/agent/.local/bin/mcp-grafana >/dev/null 2>&1 || true"]
+      user: "1000"
+      description: "Register mcp-grafana with the Claude agent (best-effort; no-op elsewhere)"
+  initFiles:
+    - path: /home/agent/.grafana/mcp.json
+      mode: "0644"
+      onlyIfMissing: true
+      description: "Portable MCP server definition for Grafana Cloud"
+      content: |
+        {
+          "mcpServers": {
+            "grafana": {
+              "command": "/home/agent/.local/bin/mcp-grafana",
+              "args": [],
+              "env": {
+                "GRAFANA_URL": "https://YOUR-STACK.grafana.net"
+              }
+            }
+          }
+        }
+memory: |
+  ## Grafana observability tooling (Grafana Cloud)
+
+  The official Grafana MCP server (`mcp-grafana`) is installed at
+  `~/.local/bin/mcp-grafana` and wired to Grafana Cloud via `GRAFANA_URL`.
+  The service-account token is supplied by the sbx proxy from the stored
+  `grafana` secret, so it is not present in the sandbox. Through the MCP server
+  you can search dashboards, list datasources, and run Prometheus/Loki queries.
+  The `grafana-client` Python library is installed for scripting; see
+  `~/runbooks/grafana_report.py`.

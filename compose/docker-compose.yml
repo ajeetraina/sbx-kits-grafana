@@ -1,0 +1,31 @@
+# Host-side stack for the default `local` Grafana kit.
+#
+# Run this on your HOST (not in the sandbox) before launching the kit:
+#
+#     docker compose -f compose/docker-compose.yml up -d
+#
+# It brings up Grafana on http://localhost:3000 with anonymous Admin access, so
+# the sandbox's mcp-grafana / grafana-client can reach it via
+# host.docker.internal:3000 with no token — the zero-config default. A
+# Prometheus instance is included and pre-wired as a datasource so there is
+# something for the MCP server to query.
+services:
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "3000:3000"
+    environment:
+      # Zero-config: no login. Anyone reaching the API acts as an Admin.
+      # Fine for a local demo; do NOT expose this instance beyond localhost.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports:
+      - "9090:9090"
